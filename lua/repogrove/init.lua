@@ -115,9 +115,10 @@ function M.open(path)
   map('g',function()
     local n=selected(); if not n then return end
     local dir=n.dir and n.p or vim.fs.dirname(n.p)
-    local choices=n.repo and {'shell','status','log','add -p','commit','fetch','pull','push'} or {'shell'}
+    local choices=n.repo and {'shell','status','log','commit files','add -p','commit','fetch','pull','push'} or {'shell'}
     vim.ui.select(choices,{prompt='Actions @ '..dir},function(choice)
       if not choice then return end
+      if choice=='commit files' then return require('repogrove.history').open(n.repo) end
       local cmd=choice=='shell' and {vim.o.shell} or vim.list_extend({'git'},vim.split(choice,' '))
       vim.cmd('botright new'); vim.bo.bufhidden='wipe'
       vim.fn.termopen(cmd,{cwd=choice=='shell' and dir or n.repo,on_exit=vim.schedule_wrap(function() if a.nvim_buf_is_valid(b) then refresh() end end)})

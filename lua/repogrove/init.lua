@@ -121,7 +121,10 @@ function M.open(path)
       if choice=='commit files' then return require('repogrove.history').open(n.repo) end
       local cmd=choice=='shell' and {vim.o.shell} or vim.list_extend({'git'},vim.split(choice,' '))
       vim.cmd('botright new'); vim.bo.bufhidden='wipe'
-      vim.fn.termopen(cmd,{cwd=choice=='shell' and dir or n.repo,on_exit=vim.schedule_wrap(function() if a.nvim_buf_is_valid(b) then refresh() end end)})
+      local cwd=choice=='shell' and dir or n.repo
+      -- Keep :pwd in the terminal window, the child's cwd and $PWD in sync.
+      vim.api.nvim_cmd({cmd='lcd',args={cwd},magic={file=false}}, {})
+      vim.fn.termopen(cmd,{cwd=cwd,env={PWD=cwd},on_exit=vim.schedule_wrap(function() if a.nvim_buf_is_valid(b) then refresh() end end)})
       vim.cmd('startinsert')
     end)
   end)

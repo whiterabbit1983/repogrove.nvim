@@ -17,6 +17,9 @@ local function parse(out)
     if skip then skip=false
     elseif t=='#' then
       r.branch=line:match('^# branch%.head (.*)') or r.branch
+      local ahead,behind=line:match('^# branch%.ab %+(%d+) %-(%d+)$')
+      if ahead then r.sync=' ↑'..ahead..' ↓'..behind end
+      if line:match('^# branch%.upstream ') then r.upstream=true end
       oid=line:match('^# branch%.oid (.*)') or oid
     else
       local n=({['1']=8,['2']=9,u=10,['?']=1,['!']=1})[t]
@@ -52,7 +55,7 @@ function M.open(path)
   local function status(repo)
     if not cache[repo] then
       local entry={}; cache[repo]=entry
-      vim.system({'git','--no-optional-locks','-C',repo,'status','--porcelain=v2','--branch','-z','--ignored=matching','--untracked-files=all'}, {}, vim.schedule_wrap(function(res)
+      vim.system({'git','--no-optional-locks','-C',repo,'status','--porcelain=v2','--branch','--ahead-behind','-z','--ignored=matching','--untracked-files=all'}, {}, vim.schedule_wrap(function(res)
         if cache[repo]~=entry or not a.nvim_buf_is_valid(b) then return end
         cache[repo]=res.code==0 and parse(res.stdout) or {error=vim.trim(res.stderr)}; render()
       end))
@@ -81,7 +84,7 @@ function M.open(path)
         end
       end
       ignored=ignored or mark=='!!'
-      local suffix=isrepo and (st.error and '   [git error]' or not st.paths and '   […]' or ('   [%s | staged %d | unstaged %d]'):format(vim.fn.strtrans(st.branch or '?'),st.staged,st.dirty)) or (ignored and '   !!' or mark and '   '..mark or '')
+      local suffix=isrepo and (st.error and '   [git error]' or not st.paths and '   […]' or ('   [%s%s | staged %d | unstaged %d]'):format(vim.fn.strtrans(st.branch or '?'),st.sync or (st.upstream and ' ↑? ↓?' or ''),st.staged,st.dirty)) or (ignored and '   !!' or mark and '   '..mark or '')
       local grp=isrepo and 'Repo' or ignored and 'Ignored' or mark and (mark:sub(2,2)=='.' and 'Staged' or 'Dirty') or dir and 'Dir' or nil
       add(prefix..edge..(dir and (expanded[p] and '▾ ' or '▸ ') or '  ')..vim.fn.strtrans(name)..(dir and '/' or '')..suffix,grp,{p=p,dir=dir,repo=repo})
       if dir and expanded[p] then
@@ -111,7 +114,7 @@ function M.open(path)
   map('r',refresh); map('q',function() a.nvim_buf_delete(b,{force=true}) end)
   map('g',function()
     local n=selected(); if not n or not n.repo then return vim.notify('Select a repository or a file inside it') end
-    vim.ui.select({'shell','status','add -p','commit','pull','push'},{prompt='Git @ '..n.repo},function(choice)
+    vim.ui.select({'shell','status','add -p','commit','fetch','pull','push'},{prompt='Git @ '..n.repo},function(choice)
       if not choice then return end
       local cmd=choice=='shell' and {vim.o.shell} or vim.list_extend({'git'},vim.split(choice,' '))
       vim.cmd('botright new'); vim.bo.bufhidden='wipe'

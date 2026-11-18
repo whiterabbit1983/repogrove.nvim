@@ -113,12 +113,14 @@ function M.open(path)
   end)
   map('r',refresh); map('q',function() a.nvim_buf_delete(b,{force=true}) end)
   map('g',function()
-    local n=selected(); if not n or not n.repo then return vim.notify('Select a repository or a file inside it') end
-    vim.ui.select({'shell','status','add -p','commit','fetch','pull','push'},{prompt='Git @ '..n.repo},function(choice)
+    local n=selected(); if not n then return end
+    local dir=n.dir and n.p or vim.fs.dirname(n.p)
+    local choices=n.repo and {'shell','status','log','add -p','commit','fetch','pull','push'} or {'shell'}
+    vim.ui.select(choices,{prompt='Actions @ '..dir},function(choice)
       if not choice then return end
       local cmd=choice=='shell' and {vim.o.shell} or vim.list_extend({'git'},vim.split(choice,' '))
       vim.cmd('botright new'); vim.bo.bufhidden='wipe'
-      vim.fn.termopen(cmd,{cwd=n.repo,on_exit=vim.schedule_wrap(function() if a.nvim_buf_is_valid(b) then refresh() end end)})
+      vim.fn.termopen(cmd,{cwd=choice=='shell' and dir or n.repo,on_exit=vim.schedule_wrap(function() if a.nvim_buf_is_valid(b) then refresh() end end)})
       vim.cmd('startinsert')
     end)
   end)
